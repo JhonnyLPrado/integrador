@@ -280,7 +280,7 @@ async function connectToRealtimeDB() {
         // Importar funciones de Firebase Realtime Database
         const { ref, onValue, off } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
         
-        const locationsRef = ref(window.Firebase.realtimeDb, 'ubicaciones');
+        const locationsRef = ref(window.Firebase.realtimeDb, 'geolocation');
         
         // Detener listener anterior si existe
         if (realtimeListener) {
@@ -353,8 +353,14 @@ function getLastLocation(locations) {
     Object.keys(locations).forEach(key => {
         const location = locations[key];
         if (!anyKey) anyKey = key; // Guardar el primer key encontrado
-        if (!location.fecha_registrada) return;
-        const locationDate = new Date(location.fecha_registrada);
+        const fecha = location.fecha_registrada || location.updatedAt;
+if (!fecha) return;
+
+        const fecha = location.fecha_registrada || location.updatedAt;
+if (!fecha) return;
+
+const locationDate = new Date(fecha);
+
         if (isNaN(locationDate.getTime())) return;
         if (!lastDate || locationDate > lastDate) {
             lastDate = locationDate;
@@ -388,7 +394,8 @@ function updateMap(locations) {
     Object.keys(locations).forEach(key => {
         const location = locations[key];
         
-        if (location.lat && location.lng) {
+        if (location.lat && (location.lng || location.long)) {
+    location.lng = location.lng || location.long;
             // Determinar el icono según el modo
             let iconUrl, iconSize;
             if (showOnlyLastLocation) {
@@ -441,7 +448,9 @@ function updateMap(locations) {
 
 // Crear contenido para el marcador
 function createMarkerContent(location, key) {
-    const fecha = location.fecha_registrada || 'No especificada';
+    const fecha = location.fecha_registrada 
+           || (location.updatedAt ? new Date(location.updatedAt).toISOString() : 'No especificada');
+
     return `
         <div class="marker-info">
             <h6><i class="fas fa-map-pin text-danger"></i> ${location.nombre || 'Sin nombre'}</h6>
@@ -503,8 +512,14 @@ function updateLocationsList(locations) {
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-1">${location.nombre || 'Sin nombre'}${badgeHtml}</h6>
-                    <small class="text-muted">${location.lat}, ${location.lng}</small>
-                    ${location.fecha_registrada ? `<br><small class="text-info">${new Date(location.fecha_registrada).toLocaleString()}</small>` : ''}
+                    <small class="text-muted">${location.lat}, ${location.lng || location.long}</small>
+
+
+                    ${(location.fecha_registrada || location.updatedAt) 
+    ? `<br><small class="text-info">${new Date(location.fecha_registrada || location.updatedAt).toLocaleString()}</small>` 
+    : ''
+}
+
                 </div>
                 <div>
                     <button class="btn btn-sm btn-outline-primary" onclick="centerMapToLocation(${location.lat}, ${location.lng})">
@@ -548,7 +563,7 @@ function addTestLocation() {
     }
 
     import('firebase/database').then(({ ref, push, set }) => {
-        const locationsRef = ref(window.Firebase.realtimeDb, 'ubicaciones');
+        const locationsRef = ref(window.Firebase.realtimeDb, 'geolocation');
           // Generar coordenadas aleatorias en La Paz
         const laPazCoords = {
             lat: -16.5000 + (Math.random() - 0.5) * 0.1,
@@ -603,7 +618,7 @@ function clearAllData() {
     }
 
     import('firebase/database').then(({ ref, remove }) => {
-        const locationsRef = ref(window.Firebase.realtimeDb, 'ubicaciones');
+        const locationsRef = ref(window.Firebase.realtimeDb, 'geolocation');
         
         remove(locationsRef).then(() => {
             addLog('Todos los datos han sido eliminados', 'success');
@@ -625,8 +640,7 @@ function removeLocation(key) {
     addLog(`Eliminando ubicación: ${key}`, 'warning');
     
     import('firebase/database').then(({ ref, remove }) => {
-        const locationRef = ref(window.Firebase.realtimeDb, `ubicaciones/${key}`);
-        
+        const locationRef = ref(window.Firebase.realtimeDb, `geolocation/${key}`);        
         remove(locationRef).then(() => {
             addLog('Ubicación eliminada correctamente', 'success');
         }).catch((error) => {
